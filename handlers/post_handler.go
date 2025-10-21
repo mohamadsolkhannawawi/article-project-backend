@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	// Import database package for DB instance access
@@ -109,5 +110,62 @@ func CreatePost(c *fiber.Ctx) error {
 		"status":  "success",
 		"message": "Post created successfully",
 		"data":    newPost,
+	})
+}
+
+// GetPosts is the handler for the GET /api/posts endpoint
+func GetPosts(c *fiber.Ctx) error {
+	// 1. Parse query parameters for pagination and filtering
+	// Set defaults
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	offset, _ := strconv.Atoi(c.Query("offset", "0"))
+	status := c.Query("status", "") // Get status filter
+
+	var posts []models.Post
+	var total int64
+
+	// 2. Build the database query
+	// We start with a base query and add to it
+	query := database.DB.Model(&models.Post{}).
+		Preload("Author"). // Load the related Author
+		Preload("Tags")    // Load the related Tags
+
+	// 3. Apply status filter if provided
+	if status != "" {
+		// This allows filtering for 'publish', 'draft', or 'thrash'
+		query = query.Where("status = ?", status)
+	}
+
+	// 4. Get the total count of records matching the filter
+	// We need this for pagination metadata
+	if err := query.Count(&total).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Failed to count posts", "error": err.Error(),
+		})
+	}
+	
+	// 5. Apply pagination and order, then find the posts
+	err := query.
+		Order("created_at DESC"). // Show newest posts first
+		Limit(limit).
+		Offset(offset).
+		Find(&posts).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Failed to retrieve posts", "error": err.Error(),
+		})
+	}
+	
+	// 6. Return the response with data and metadata
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"message": "Posts retrieved successfully",
+		"data":    posts,
+		"meta": fiber.Map{ // Pagination info for the frontend
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
 	})
 }
