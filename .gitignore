@@ -1,0 +1,5 @@
+# Ignore because of security reasons
+.env
+
+# Ignore binary/executable files
+article-backend
