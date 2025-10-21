@@ -14,6 +14,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	// Import UUID package
 	"github.com/google/uuid"
+	// Import GORM for database operations
+	"gorm.io/gorm"
 )
 
 // CreatePostRequest is the struct for parsing and validating the create post request body
@@ -167,5 +169,48 @@ func GetPosts(c *fiber.Ctx) error {
 			"limit":  limit,
 			"offset": offset,
 		},
+	})
+}
+
+// GetPostByID is the handler for the GET /api/posts/:id endpoint
+func GetPostByID(c *fiber.Ctx) error {
+	// 1. Get the ID from the URL parameters
+	idParam := c.Params("id")
+	
+	// 2. Parse the string ID into a UUID
+	postID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "error", "message": "Invalid post ID format", "error": err.Error(),
+		})
+	}
+
+	var post models.Post
+
+	// 3. Find the post in the database
+	// We preload Author and Tags just like before
+	err = database.DB.
+		Preload("Author").
+		Preload("Tags").
+		First(&post, postID).Error // Find by primary key
+
+	if err != nil {
+		// Check if the error is "record not found"
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status": "error", "message": "Post not found",
+			})
+		}
+		// Other potential database errors
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Database error", "error": err.Error(),
+		})
+	}
+
+	// 4. Return the found post
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Post retrieved successfully",
+		"data":    post,
 	})
 }

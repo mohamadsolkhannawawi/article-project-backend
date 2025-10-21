@@ -65,6 +65,9 @@ func setupRoutes(app *fiber.App) {
 	// GET /api/posts - Public route to get all published posts with pagination
 	api.Get("/posts", handlers.GetPosts)
 
+	// GET /api/posts/:id - Get a single post by ID (Public)
+	api.Get("/posts/:id", handlers.GetPostByID)
+
 	// GET /api/profile - Protected route to get user profile
 	api.Get("/profile", middleware.AuthRequired(), func(c *fiber.Ctx) error {
 		// Get user data stored by middleware
