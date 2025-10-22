@@ -20,6 +20,9 @@ func ConnectDB() {
 
 	log.Printf("DEBUG: Attempting to connect with NEON_CONNECTION_STRING = [%s]\n", dsn)
 
+	testVar := os.Getenv("GREETING")
+	log.Printf("DEBUG: Test variable GREETING = [%s]\n", testVar)
+
 	// Open connection to database
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
