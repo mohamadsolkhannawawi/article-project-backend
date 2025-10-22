@@ -335,3 +335,57 @@ func UpdatePost(c *fiber.Ctx) error {
 		"data":    post,
 	})
 }
+
+// DeletePost is the handler for the DELETE /api/posts/:id endpoint (Soft Delete)
+func DeletePost(c *fiber.Ctx) error {
+	// 1. Get the ID from the URL parameters
+	idParam := c.Params("id")
+	postID, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "error", "message": "Invalid post ID format", "error": err.Error(),
+		})
+	}
+
+	// 2. Find the existing post
+	var post models.Post
+	if err := database.DB.First(&post, postID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status": "error", "message": "Post not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Database error", "error": err.Error(),
+		})
+	}
+
+	// 3. Get Author ID from middleware for authorization
+	authorIDString, _ := c.Locals("userID").(string)
+	authorID, _ := uuid.Parse(authorIDString)
+
+	// Authorization Check: Is the logged-in user the author?
+	if post.AuthorID != authorID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":  "error",
+			"message": "You are not authorized to delete this post",
+		})
+	}
+
+	// 4. Perform the Soft Delete
+	// GORM's .Delete() function will automatically set the 'deleted_at'
+	// timestamp instead of deleting the row, because our model has gorm.DeletedAt.
+	if err := database.DB.Delete(&post).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Failed to delete post", "error": err.Error(),
+		})
+	}
+
+	// 5. Return success response
+	// We use 200 OK or 204 No Content. 200 is fine as we send a message.
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Post moved to thrash successfully",
+	})
+}
+

@@ -70,6 +70,9 @@ func setupRoutes(app *fiber.App) {
 
 	// PUT /api/posts/:id - Update a post (Protected)
 	api.Put("/posts/:id", middleware.AuthRequired(), handlers.UpdatePost)
+
+	// DELETE /api/posts/:id - Soft delete a post (Protected)
+	api.Delete("/posts/:id", middleware.AuthRequired(), handlers.DeletePost)
 }
 
 func main() {
