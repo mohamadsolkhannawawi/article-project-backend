@@ -3,3 +3,7 @@
 
 # Ignore binary/executable files
 article-backend
+
+# Build artifact from 'air'
+tmp/
+*.exe

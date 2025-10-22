@@ -116,40 +116,33 @@ func CreatePost(c *fiber.Ctx) error {
 	})
 }
 
-// GetPosts is the handler for the GET /api/posts endpoint
+// GetPosts is the handler for the GET /api/posts endpoint (REFACTORED)
 func GetPosts(c *fiber.Ctx) error {
-	// 1. Parse query parameters for pagination and filtering
-	// Set defaults
+	// 1. Parse query parameters for pagination
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset, _ := strconv.Atoi(c.Query("offset", "0"))
-	status := c.Query("status", "") // Get status filter
+	// We ignore any 'status' query param here. This endpoint is public.
 
 	var posts []models.Post
 	var total int64
 
 	// 2. Build the database query
-	// We start with a base query and add to it
+	// We hard-code 'status = publish' because this is the public endpoint.
 	query := database.DB.Model(&models.Post{}).
-		Preload("Author"). // Load the related Author
-		Preload("Tags")    // Load the related Tags
+		Preload("Author").
+		Preload("Tags").
+		Where("status = ?", "publish") // <-- THE FIX
 
-	// 3. Apply status filter if provided
-	if status != "" {
-		// This allows filtering for 'publish', 'draft', or 'thrash'
-		query = query.Where("status = ?", status)
-	}
-
-	// 4. Get the total count of records matching the filter
-	// We need this for pagination metadata
+	// 3. Get the total count of *published* posts
 	if err := query.Count(&total).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "error", "message": "Failed to count posts", "error": err.Error(),
 		})
 	}
 	
-	// 5. Apply pagination and order, then find the posts
+	// 4. Apply pagination and order, then find the posts
 	err := query.
-		Order("created_at DESC"). // Show newest posts first
+		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&posts).Error
@@ -160,18 +153,19 @@ func GetPosts(c *fiber.Ctx) error {
 		})
 	}
 	
-	// 6. Return the response with data and metadata
+	// 5. Return the response
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"message": "Posts retrieved successfully",
 		"data":    posts,
-		"meta": fiber.Map{ // Pagination info for the frontend
+		"meta": fiber.Map{
 			"total":  total,
 			"limit":  limit,
 			"offset": offset,
 		},
 	})
 }
+
 
 // GetPostByID is the handler for the GET /api/posts/:id endpoint
 func GetPostByID(c *fiber.Ctx) error {
@@ -336,7 +330,7 @@ func UpdatePost(c *fiber.Ctx) error {
 	})
 }
 
-// DeletePost is the handler for the DELETE /api/posts/:id endpoint (Soft Delete)
+// DeletePost is the handler for the DELETE /api/posts/:id endpoint (REFACTORED)
 func DeletePost(c *fiber.Ctx) error {
 	// 1. Get the ID from the URL parameters
 	idParam := c.Params("id")
@@ -349,7 +343,9 @@ func DeletePost(c *fiber.Ctx) error {
 
 	// 2. Find the existing post
 	var post models.Post
-	if err := database.DB.First(&post, postID).Error; err != nil {
+    // We use Unscoped() here just in case the post was ALREADY soft-deleted
+    // by the old broken code. This lets us find it.
+	if err := database.DB.Unscoped().First(&post, postID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"status": "error", "message": "Post not found",
@@ -360,11 +356,9 @@ func DeletePost(c *fiber.Ctx) error {
 		})
 	}
 
-	// 3. Get Author ID from middleware for authorization
+	// 3. Authorization Check
 	authorIDString, _ := c.Locals("userID").(string)
 	authorID, _ := uuid.Parse(authorIDString)
-
-	// Authorization Check: Is the logged-in user the author?
 	if post.AuthorID != authorID {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":  "error",
@@ -372,37 +366,35 @@ func DeletePost(c *fiber.Ctx) error {
 		})
 	}
 
-	// 4. Perform the Soft Delete
-	// GORM's .Delete() function will automatically set the 'deleted_at'
-	// timestamp instead of deleting the row, because our model has gorm.DeletedAt.
-	if err := database.DB.Delete(&post).Error; err != nil {
+	// 4. Perform the "Trash" (Status update)
+    // This is the correct logic per your requirements.
+	post.Status = "trash"
+    post.DeletedAt = gorm.DeletedAt{} // Set deleted_at back to NULL
+
+	if err := database.DB.Save(&post).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error", "message": "Failed to delete post", "error": err.Error(),
+			"status": "error", "message": "Failed to move post to trash", "error": err.Error(),
 		})
 	}
 
 	// 5. Return success response
-	// We use 200 OK or 204 No Content. 200 is fine as we send a message.
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
-		"message": "Post moved to thrash successfully",
+		"message": "Post moved to trash successfully",
 	})
 }
 
-// GetAdminPosts is the handler for GET /api/admin/posts (protected)
-// It can be used to fetch any posts, including 'thrash'
+// GetAdminPosts is the handler for GET /api/admin/posts (REFACTORED)
 func GetAdminPosts(c *fiber.Ctx) error {
 	// 1. Parse query parameters
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset, _ := strconv.Atoi(c.Query("offset", "0"))
-	status := c.Query("status", "") // Get status filter
+	status := c.Query("status", "") // e.g., "published", "draft", "trashed"
 
 	var posts []models.Post
 	var total int64
 
-	// 2. Build the query
-	// GORM.Unscoped() tells GORM to *ignore* the 'deleted_at' field
-	// and retrieve ALL records, including soft-deleted ones.
+	// 2. Build the query (MUCH SIMPLER)
 	query := database.DB.Model(&models.Post{}).
 		Unscoped().
 		Preload("Author").
@@ -410,18 +402,20 @@ func GetAdminPosts(c *fiber.Ctx) error {
 
 	// 3. Apply status filter
 	if status != "" {
-		if status == "thrash" {
-			// Special case: only find posts that HAVE a deleted_at value
-			query = query.Where("deleted_at IS NOT NULL")
-		} else {
-			// Regular status filter (publish, draft)
-			// We must also explicitly filter out thrash items for these states
-			query = query.Where("status = ? AND deleted_at IS NULL", status)
+        // Frontend sends "published", "drafts", "trashed"
+        // We handle the plural 's'
+        if status == "drafts" {
+            status = "draft"
+        } else if status == "trashed" {
+            status = "thrash"
+        } else if status == "published" {
+			status = "publish"
 		}
+		query = query.Where("status = ?", status)
 	} else {
-		// If no status, get ALL (publish, draft) but NOT thrash
-		query = query.Where("deleted_at IS NULL")
-	}
+        // Default: Get all non-thrashed posts
+        query = query.Where("status IN ?", []string{"publish", "draft"})
+    }
 
 	// 4. Get the total count
 	if err := query.Count(&total).Error; err != nil {
@@ -447,6 +441,85 @@ func GetAdminPosts(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"message": "Admin posts retrieved successfully",
+		"data":    posts,
+		"meta": fiber.Map{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
+	})
+}
+
+// GetMyPosts is the handler for GET /api/posts/my (PROTECTED)
+// Returns only posts created by the authenticated user
+func GetMyPosts(c *fiber.Ctx) error {
+	// 1. Get user ID from middleware
+	userID, ok := c.Locals("userID").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status": "error", "message": "Unauthorized: User ID not found",
+		})
+	}
+
+	// 2. Parse query parameters
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	offset, _ := strconv.Atoi(c.Query("offset", "0"))
+	status := c.Query("status", "")      // e.g., "publish", "draft", "trash"
+	published := c.Query("published", "") // e.g., "true" for published only
+
+	var posts []models.Post
+	var total int64
+
+	// 3. Build the query - FILTER BY USER ID
+	query := database.DB.Model(&models.Post{}).
+		Where("author_id = ?", userID). // KEY: Filter by authenticated user
+		Unscoped().
+		Preload("Author").
+		Preload("Tags")
+
+	// 4. Apply status filter if provided
+	if status != "" {
+		// Normalize status values
+		if status == "drafts" {
+			status = "draft"
+		} else if status == "trashed" {
+			status = "trash"
+		} else if status == "published" {
+			status = "publish"
+		}
+		query = query.Where("status = ?", status)
+	} else if published == "true" {
+		// If published=true parameter is passed, only get published posts
+		query = query.Where("status = ?", "publish")
+	} else {
+		// Default: Get all non-trashed posts
+		query = query.Where("status IN ?", []string{"publish", "draft"})
+	}
+
+	// 5. Get the total count
+	if err := query.Count(&total).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Failed to count posts", "error": err.Error(),
+		})
+	}
+
+	// 6. Apply pagination and order
+	err := query.
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&posts).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Failed to retrieve posts", "error": err.Error(),
+		})
+	}
+
+	// 7. Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Your posts retrieved successfully",
 		"data":    posts,
 		"meta": fiber.Map{
 			"total":  total,

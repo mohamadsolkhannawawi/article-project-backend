@@ -43,6 +43,9 @@ func setupRoutes(app *fiber.App) {
 	// GET /api/posts - Public route to get all published posts with pagination
 	api.Get("/posts", handlers.GetPosts)
 
+	// GET /api/posts/my - Get posts created by authenticated user (Protected) - MUST BE BEFORE /:id route
+	api.Get("/posts/my", middleware.AuthRequired(), handlers.GetMyPosts)
+
 	// GET /api/posts/:id - Get a single post by ID (Public)
 	api.Get("/posts/:id", handlers.GetPostByID)
 

@@ -3,6 +3,8 @@ package handlers
 import (
 	"log"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	// Import package database dan models
@@ -30,8 +32,40 @@ var validate = validator.New()
 type RegisterRequest struct {
 	FullName string `json:"full_name" validate:"required,min=3"`
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
+	Password string `json:"password" validate:"required,min=12"`
 }
+
+// isPasswordComplex checks if the password meets the complexity requirements
+func isPasswordComplex(password, fullName, email string) bool {
+	// Using regex to check for character types
+	hasUpper, _ := regexp.MatchString(`[A-Z]`, password)
+	hasLower, _ := regexp.MatchString(`[a-z]`, password)
+	hasDigit, _ := regexp.MatchString(`[0-9]`, password)
+	// Escaping special characters for regex
+	hasSymbol, _ := regexp.MatchString(`[!@#$%^&*()_+\-=\[\]{}|\\:";'<>?,./~`+"`"+`]`, password)
+
+	if !hasUpper || !hasLower || !hasDigit || !hasSymbol {
+		return false
+	}
+
+	// Check if password contains user's info (case-insensitive)
+	// Avoid this check if the name is very short
+	if len(fullName) > 3 && strings.Contains(strings.ToLower(password), strings.ToLower(fullName)) {
+		return false
+	}
+
+	// Also check against the username part of the email
+	if email != "" {
+		emailParts := strings.Split(email, "@")
+		emailUsername := emailParts[0]
+		if len(emailUsername) > 3 && strings.Contains(strings.ToLower(password), strings.ToLower(emailUsername)) {
+			return false
+		}
+	}
+
+	return true
+}
+
 
 // hashPassword is a helper function to hash passwords using bcrypt
 func hashPassword(password string) (string, error) {
@@ -61,7 +95,16 @@ func RegisterUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// 3. Hash password
+	// 3. Custom password validation
+	if !isPasswordComplex(req.Password, req.FullName, req.Email) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Password does not meet complexity requirements",
+		})
+	}
+
+
+	// 4. Hash password
 	hashedPassword, err := hashPassword(req.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
