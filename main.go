@@ -3,11 +3,12 @@ package main
 import (
 	"log"
 
-	// Import package database, handlers, middleware, models
+	// Import package database, handlers, middleware, models, utils
 	"github.com/mohamadsolkhannawawi/article-backend/database"
 	"github.com/mohamadsolkhannawawi/article-backend/handlers"
 	"github.com/mohamadsolkhannawawi/article-backend/middleware"
 	"github.com/mohamadsolkhannawawi/article-backend/models"
+	"github.com/mohamadsolkhannawawi/article-backend/utils"
 
 	// Import Fiber web framework to start the server later
 	"github.com/gofiber/fiber/v2"
@@ -67,6 +68,9 @@ func setupRoutes(app *fiber.App) {
 	// GET /api/admin/posts - Get posts, including trashed (Protected)
 	api.Get("/admin/posts", middleware.AuthRequired(), handlers.GetAdminPosts)
 
+	// POST /api/upload - Upload an image (Protected)
+	api.Post("/upload", middleware.AuthRequired(), handlers.UploadImage)
+
 	// --- POST Routes (CRUD for Posts) ---
 	/// POST /api/posts - Protected route to create a new post
 	api.Post("/posts", middleware.AuthRequired(), handlers.CreatePost)
@@ -87,6 +91,9 @@ func main() {
 
 	// Connect to the database
 	database.ConnectDB()
+
+	// Initialize Cloudinary
+	utils.InitCloudinary()
 
 	// Run Migrations
 	runMigrations(database.DB)
