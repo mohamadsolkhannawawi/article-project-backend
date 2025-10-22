@@ -39,35 +39,14 @@ func setupRoutes(app *fiber.App) {
 	// POST /api/login - Public route to login an existing user
 	api.Post("/login", handlers.LoginUser)
 
-
-	// --- Protected Routes (require authentication) ---
-	api.Get("/profile", middleware.AuthRequired(), func(c *fiber.Ctx) error {
-		// Get user data stored by middleware
-		userID := c.Locals("userID")
-		email := c.Locals("userEmail")
-		fullName := c.Locals("userFullName")
-
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"status": "success",
-			"message": "Profile data retrieved successfully",
-			"data": fiber.Map{
-				"id":        userID,
-				"email":     email,
-				"full_name": fullName,
-			},
-		})
-	})
-
-	// --- POST Routes (CRUD for Posts) ---
-	/// POST /api/posts - Protected route to create a new post
-	api.Post("/posts", middleware.AuthRequired(), handlers.CreatePost)
-
 	// GET /api/posts - Public route to get all published posts with pagination
 	api.Get("/posts", handlers.GetPosts)
 
 	// GET /api/posts/:id - Get a single post by ID (Public)
 	api.Get("/posts/:id", handlers.GetPostByID)
 
+
+	// --- Protected Routes (require authentication) ---
 	// GET /api/profile - Protected route to get user profile
 	api.Get("/profile", middleware.AuthRequired(), func(c *fiber.Ctx) error {
 		// Get user data stored by middleware
@@ -84,6 +63,13 @@ func setupRoutes(app *fiber.App) {
 			},
 		})
 	})
+
+	// --- POST Routes (CRUD for Posts) ---
+	/// POST /api/posts - Protected route to create a new post
+	api.Post("/posts", middleware.AuthRequired(), handlers.CreatePost)
+
+	// PUT /api/posts/:id - Update a post (Protected)
+	api.Put("/posts/:id", middleware.AuthRequired(), handlers.UpdatePost)
 }
 
 func main() {
