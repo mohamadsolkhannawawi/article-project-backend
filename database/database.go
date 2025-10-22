@@ -16,9 +16,9 @@ func ConnectDB() {
 	var err error
 
 	// Get DSN (Data Source Name) from environment variable
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := os.Getenv("NEON_CONNECTION_STRING")
 
-	log.Printf("DEBUG: Attempting to connect with DATABASE_URL = [%s]\n", dsn)
+	log.Printf("DEBUG: Attempting to connect with NEON_CONNECTION_STRING = [%s]\n", dsn)
 
 	// Open connection to database
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
