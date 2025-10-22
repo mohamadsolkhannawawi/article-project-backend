@@ -3,7 +3,6 @@ package handler
 import (
 	"log"
 	"net/http"
-	"os"
 
 	// Import package database, handlers, middleware, models, utils
 	"github.com/mohamadsolkhannawawi/article-backend/database"
