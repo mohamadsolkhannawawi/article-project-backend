@@ -135,7 +135,14 @@ func main() {
 		})
 	})
 
+	// Get the port from the environment variable provided by Vercel/hosting
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000" // Default to 3000 if not set (for local development)
+	}
+
 	// Start the server
-	log.Println("Server is running on http://localhost:3000")
-	log.Fatal(app.Listen(":3000"))
+	log.Printf("Starting server on port %s...\n", port)
+    // Listen on "0.0.0.0:" + port for broader compatibility in containers/serverless
+	log.Fatal(app.Listen(":" + port))
 }
