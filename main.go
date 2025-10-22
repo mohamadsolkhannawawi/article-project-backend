@@ -64,6 +64,9 @@ func setupRoutes(app *fiber.App) {
 		})
 	})
 
+	// GET /api/admin/posts - Get posts, including trashed (Protected)
+	api.Get("/admin/posts", middleware.AuthRequired(), handlers.GetAdminPosts)
+
 	// --- POST Routes (CRUD for Posts) ---
 	/// POST /api/posts - Protected route to create a new post
 	api.Post("/posts", middleware.AuthRequired(), handlers.CreatePost)

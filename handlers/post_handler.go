@@ -389,3 +389,69 @@ func DeletePost(c *fiber.Ctx) error {
 	})
 }
 
+// GetAdminPosts is the handler for GET /api/admin/posts (protected)
+// It can be used to fetch any posts, including 'thrash'
+func GetAdminPosts(c *fiber.Ctx) error {
+	// 1. Parse query parameters
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	offset, _ := strconv.Atoi(c.Query("offset", "0"))
+	status := c.Query("status", "") // Get status filter
+
+	var posts []models.Post
+	var total int64
+
+	// 2. Build the query
+	// GORM.Unscoped() tells GORM to *ignore* the 'deleted_at' field
+	// and retrieve ALL records, including soft-deleted ones.
+	query := database.DB.Model(&models.Post{}).
+		Unscoped().
+		Preload("Author").
+		Preload("Tags")
+
+	// 3. Apply status filter
+	if status != "" {
+		if status == "thrash" {
+			// Special case: only find posts that HAVE a deleted_at value
+			query = query.Where("deleted_at IS NOT NULL")
+		} else {
+			// Regular status filter (publish, draft)
+			// We must also explicitly filter out thrash items for these states
+			query = query.Where("status = ? AND deleted_at IS NULL", status)
+		}
+	} else {
+		// If no status, get ALL (publish, draft) but NOT thrash
+		query = query.Where("deleted_at IS NULL")
+	}
+
+	// 4. Get the total count
+	if err := query.Count(&total).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Failed to count posts", "error": err.Error(),
+		})
+	}
+	
+	// 5. Apply pagination and order
+	err := query.
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&posts).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error", "message": "Failed to retrieve posts", "error": err.Error(),
+		})
+	}
+	
+	// 6. Return response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+		"message": "Admin posts retrieved successfully",
+		"data":    posts,
+		"meta": fiber.Map{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
+	})
+}
