@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"net/http"
+	"os"
 
 	// Import package database, handlers, middleware, models, utils
 	"github.com/mohamadsolkhannawawi/article-backend/database"
@@ -12,11 +14,15 @@ import (
 
 	// Import Fiber web framework to start the server later
 	"github.com/gofiber/fiber/v2"
+	// Import adaptor for http compatibility
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	// Import godotenv to load .env file
 	"github.com/joho/godotenv"
 	// Import GORM for database migrations
 	"gorm.io/gorm"
 )
+
+var app *fiber.App // Make app a global variable
 
 // runMigrations is a helper function to run database migrations
 func runMigrations(db *gorm.DB) {
@@ -83,66 +89,78 @@ func setupRoutes(app *fiber.App) {
 
 	// DELETE /api/posts/:id - Soft delete a post (Protected)
 	api.Delete("/posts/:id", middleware.AuthRequired(), handlers.DeletePost)
+
+	// --- Add a simple root handler ---
+    // Needed because vercel.json routes "/" to main.go
+    app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"message": "Welcome to KataGenzi API!",
+		})
+	})
+
+	// Handle 404 - Not Found for API routes specifically
+	api.Use(func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  "error",
+			"message": "API endpoint not found",
+		})
+	})
 }
 
-func main() {
-	// Load .env file
+// init function runs once when the serverless function starts
+func init() {
+	// Load .env (Vercel injects env vars, but this is good for local)
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file:", err)
+		log.Println("Note: .env file not found, relying on Vercel env vars.")
 	}
 
-	// Connect to the database
+	// Connect to DB
 	database.ConnectDB()
 
 	// Initialize Cloudinary
 	utils.InitCloudinary()
 
-	// Run Migrations
+    // Run migrations (only if needed - Vercel might reuse instances)
+    // Consider moving migrations to a separate script/process for production
 	runMigrations(database.DB)
 
-	// Create a new Fiber app
-	app := fiber.New()
+	// --- Create and configure the Fiber app ---
+	app = fiber.New()
 
-	// Define simple route for testing
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Hello, World!",
-		})
-	})
-
-	// --- CORS Middleware ---
+	// CORS Middleware (Allow frontend origin in production)
+    // Replace "*" with your frontend Vercel URL in production
 	app.Use(func(c *fiber.Ctx) error {
-		c.Set("Access-Control-Allow-Origin", "*")
+		// TODO: Replace "*" with your frontend Vercel URL for production
+        // Example: c.Set("Access-Control-Allow-Origin", "https://your-frontend-url.vercel.app")
+		c.Set("Access-Control-Allow-Origin", "*") 
 		c.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
 		
-		// Handle preflight OPTIONS requests
 		if c.Method() == "OPTIONS" {
 			return c.SendStatus(fiber.StatusNoContent)
 		}
 		return c.Next()
 	})
 
-	// Register routes
+	// Setup all routes
 	setupRoutes(app)
+}
 
-	// Handle 404 - Not Found
-	app.Use(func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Endpoint not found",
-		})
-	})
+// Handler is the exported function Vercel will call
+func Handler(w http.ResponseWriter, r *http.Request) {
+    // Use adaptor.FiberApp to convert Fiber handler to net/http handler
+	adaptor.FiberApp(app)(w, r)
+}
 
-	// Get the port from the environment variable provided by Vercel/hosting
+// main function is NO LONGER USED by Vercel for serving requests,
+// but it's useful for local development using `go run main.go` or `air`.
+func main() {
+    // We still initialize everything in init() for local dev
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "3000" // Default to 3000 if not set (for local development)
+		port = "3000"
 	}
-
-	// Start the server
-	log.Printf("Starting server on port %s...\n", port)
-    // Listen on "0.0.0.0:" + port for broader compatibility in containers/serverless
+	log.Printf("Starting LOCAL server on port %s...\n", port)
 	log.Fatal(app.Listen(":" + port))
 }
