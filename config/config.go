@@ -22,11 +22,11 @@ func init() {
 
 func LoadConfig() {
 	AppConfig = &Config{
-		DatabaseURL:         getEnvOrDefault("DATABASE_URL", "postgresql://neondb_owner:npg_Ai1ZmSbfC4pn@ep-broad-paper-addvxhil-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"),
-		CloudinaryCloudName: getEnvOrDefault("CLOUDINARY_CLOUD_NAME", "dl5agg7km"),
-		CloudinaryAPIKey:    getEnvOrDefault("CLOUDINARY_API_KEY", "699414449319264"),
-		CloudinaryAPISecret: getEnvOrDefault("CLOUDINARY_API_SECRET", "Wv_ubBCzd7ct-wT03MQTgfI3xEA"),
-		JWTSecret:           getEnvOrDefault("JWT_SECRET", "R39ZKnV5RKqJNVInJWnjxJjCeouk048I758uZyUHgobTabvdxb7mYCnp42tbFOa1"),
+		DatabaseURL:         getEnvOrDefault("DATABASE_URL", "secret_default_db_url"),
+		CloudinaryCloudName: getEnvOrDefault("CLOUDINARY_CLOUD_NAME", "secret_default_cloud_name"),
+		CloudinaryAPIKey:    getEnvOrDefault("CLOUDINARY_API_KEY", "secret_default_api_key"),
+		CloudinaryAPISecret: getEnvOrDefault("CLOUDINARY_API_SECRET", "secret_default_api_secret"),
+		JWTSecret:           getEnvOrDefault("JWT_SECRET", "secret_default_jwt_secret"),
 	}
 
 	log.Println("✓ Configuration loaded successfully")
