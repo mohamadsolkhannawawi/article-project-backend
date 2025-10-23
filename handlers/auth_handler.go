@@ -181,7 +181,7 @@ func generateJWT(user *models.User) (string, error) {
 		FullName: user.FullName,
 		Email:    user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   user.ID.String(),                                  // ← SET SUBJECT FIELD FOR MIDDLEWARE
+			Subject:   user.ID.String(),                                   // ← SET SUBJECT FIELD FOR MIDDLEWARE
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)), // Token berlaku 72 jam
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},

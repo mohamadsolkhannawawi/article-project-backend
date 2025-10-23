@@ -2,3 +2,4 @@ main.go
 *.exe
 tmp
 .env
+.env.local

@@ -29,15 +29,29 @@ func runMigrations(db *gorm.DB) {
 }
 
 func setupRoutes(app *fiber.App) {
+	// Root handler
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"message": "Welcome to KataGenzi API!",
+			"status":  "ok",
+		})
+	})
+
+	// API group
 	api := app.Group("/api")
 
+	// Auth Routes
 	api.Post("/register", handlers.RegisterUser)
 	api.Post("/login", handlers.LoginUser)
+
+	// Posts Routes
 	api.Get("/posts", handlers.GetPosts)
 	api.Get("/posts/:id", handlers.GetPostByID)
 	api.Post("/posts", middleware.AuthRequired(), handlers.CreatePost)
 	api.Put("/posts/:id", middleware.AuthRequired(), handlers.UpdatePost)
 	api.Delete("/posts/:id", middleware.AuthRequired(), handlers.DeletePost)
+
+	// Protected Routes
 	api.Get("/profile", middleware.AuthRequired(), func(c *fiber.Ctx) error {
 		userID := c.Locals("userID")
 		email := c.Locals("userEmail")
@@ -51,13 +65,7 @@ func setupRoutes(app *fiber.App) {
 	api.Get("/admin/posts", middleware.AuthRequired(), handlers.GetAdminPosts)
 	api.Post("/upload", middleware.AuthRequired(), handlers.UploadImage)
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Welcome to KataGenzi API!",
-			"status":  "ok",
-		})
-	})
-
+	// 404 Handler for API
 	api.Use(func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":  "error",
@@ -67,18 +75,21 @@ func setupRoutes(app *fiber.App) {
 }
 
 func init() {
-	// Vercel akan inject environment variables langsung
 	log.Println("Initializing application...")
 
-	// Debug: Print env vars (hati-hati di production!)
-	log.Printf("DATABASE_URL exists: %v", os.Getenv("DATABASE_URL") != "")
+	// Debug env vars
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Println("WARNING: DATABASE_URL is not set!")
+	} else {
+		log.Println("DATABASE_URL is set")
+	}
 
 	database.ConnectDB()
 	utils.InitCloudinary()
 	runMigrations(database.DB)
 
 	app = fiber.New(fiber.Config{
-		// Disable startup message untuk serverless
 		DisableStartupMessage: true,
 	})
 
@@ -99,6 +110,7 @@ func init() {
 	log.Println("Application initialized successfully")
 }
 
+// Handler adalah entry point untuk Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
 	adaptor.FiberApp(app)(w, r)
 }
