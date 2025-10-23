@@ -19,16 +19,37 @@ import (
 var app *fiber.App
 
 func runMigrations(db *gorm.DB) {
+	if db == nil {
+		log.Println("WARNING: Cannot run migrations - database is nil")
+		return
+	}
+	
 	log.Println("Running Migrations...")
 	err := db.AutoMigrate(&models.User{}, &models.Tag{}, &models.Post{})
 	if err != nil {
 		log.Printf("ERROR: Failed to migrate database: %v\n", err)
 	} else {
-		log.Println("Database Migrated Successfully!")
+		log.Println("✓ Database Migrated Successfully!")
 	}
 }
 
 func setupRoutes(app *fiber.App) {
+	// Root handler
+	app.Get("/", func(c *fiber.Ctx) error {
+		// Check if DB is connected
+		dbStatus := "disconnected"
+		if database.DB != nil {
+			dbStatus = "connected"
+		}
+		
+		return c.JSON(fiber.Map{
+			"message": "Welcome to KataGenzi API!",
+			"status":  "ok",
+			"database": dbStatus,
+		})
+	})
+
+	// API group
 	api := app.Group("/api")
 
 	// --- Public Auth Routes ---
@@ -38,7 +59,6 @@ func setupRoutes(app *fiber.App) {
 	// --- Public Post Routes ---
 	api.Get("/posts", handlers.GetPosts)
 	// ⭐ IMPORTANT: /posts/my MUST come BEFORE /posts/:id
-	// Otherwise /posts/my will be caught by /posts/:id route (my treated as ID parameter)
 	api.Get("/posts/my", middleware.AuthRequired(), handlers.GetMyPosts)
 	api.Get("/posts/:id", handlers.GetPostByID)
 
@@ -63,13 +83,7 @@ func setupRoutes(app *fiber.App) {
 		})
 	})
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Welcome to KataGenzi API!",
-			"status":  "ok",
-		})
-	})
-
+	// 404 Handler for API
 	api.Use(func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":  "error",
@@ -79,23 +93,33 @@ func setupRoutes(app *fiber.App) {
 }
 
 func init() {
-	log.Println("Initializing application...")
+	log.Println("========================================")
+	log.Println("=== VERCEL INIT START ===")
+	log.Println("========================================")
 
-	// Note: .env tidak akan dibaca di Vercel, gunakan Environment Variables
+	// Check all env vars
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Println("WARNING: DATABASE_URL is not set!")
-	} else {
-		log.Println("✓ DATABASE_URL is set")
-	}
+	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
+	cloudKey := os.Getenv("CLOUDINARY_API_KEY")
+	cloudSecret := os.Getenv("CLOUDINARY_API_SECRET")
+	jwtSecret := os.Getenv("JWT_SECRET")
 
-	// Connect to database
+	log.Printf("Environment Variables Check:")
+	log.Printf("  DATABASE_URL: %v", dbURL != "")
+	log.Printf("  CLOUDINARY_CLOUD_NAME: %v", cloudName != "")
+	log.Printf("  CLOUDINARY_API_KEY: %v", cloudKey != "")
+	log.Printf("  CLOUDINARY_API_SECRET: %v", cloudSecret != "")
+	log.Printf("  JWT_SECRET: %v", jwtSecret != "")
+
+	// Connect to database (won't crash if fails now)
+	log.Println("Connecting to database...")
 	database.ConnectDB()
 
 	// Initialize Cloudinary
+	log.Println("Initializing Cloudinary...")
 	utils.InitCloudinary()
 
-	// Run migrations
+	// Run migrations (only if DB is connected)
 	runMigrations(database.DB)
 
 	// Create Fiber app
@@ -115,13 +139,15 @@ func init() {
 		return c.Next()
 	})
 
-	// Setup routes
 	setupRoutes(app)
 
-	log.Println("✓ Application initialized successfully")
+	log.Println("========================================")
+	log.Println("=== VERCEL INIT COMPLETE ===")
+	log.Println("========================================")
 }
 
 // Handler adalah entry point untuk Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Request: %s %s", r.Method, r.URL.Path)
 	adaptor.FiberApp(app)(w, r)
 }

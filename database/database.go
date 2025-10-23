@@ -17,7 +17,10 @@ func ConnectDB() {
 	dsn := os.Getenv("DATABASE_URL")
 
 	if dsn == "" {
-		log.Fatal("ERROR: DATABASE_URL environment variable is not set!")
+		log.Println("ERROR: DATABASE_URL environment variable is not set!")
+		log.Println("Please set DATABASE_URL in Vercel Environment Variables")
+		// Don't use log.Fatal() - let it continue so we can see the error
+		return
 	}
 
 	log.Println("Attempting to connect to database...")
@@ -27,18 +30,22 @@ func ConnectDB() {
 	})
 
 	if err != nil {
-		log.Fatalf("ERROR: Failed to connect to database: %v", err)
+		log.Printf("ERROR: Failed to connect to database: %v", err)
+		// Don't crash - just log the error
+		return
 	}
 
 	// Test connection
 	sqlDB, err := DB.DB()
 	if err != nil {
-		log.Fatalf("ERROR: Failed to get database instance: %v", err)
+		log.Printf("ERROR: Failed to get database instance: %v", err)
+		return
 	}
 
 	err = sqlDB.Ping()
 	if err != nil {
-		log.Fatalf("ERROR: Failed to ping database: %v", err)
+		log.Printf("ERROR: Failed to ping database: %v", err)
+		return
 	}
 
 	log.Println("✓ Successfully connected to database")
