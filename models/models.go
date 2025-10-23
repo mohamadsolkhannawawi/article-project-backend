@@ -32,14 +32,14 @@ type Post struct {
 	Category         string    `gorm:"size:100;not null" json:"category"`
 	Status           string    `gorm:"size:50;not null;default:'draft'" json:"status"`
 	FeaturedImageURL string    `gorm:"type:text" json:"featured_image_url"`
-	
+
 	// Author Relationship (Many-to-One)
 	AuthorID uuid.UUID `gorm:"not null" json:"author_id"`
 	Author   User      `gorm:"foreignKey:AuthorID" json:"author"`
 
 	// Tags Relationship (Many-to-Many)
 	Tags []*Tag `gorm:"many2many:post_tags;" json:"tags"`
-	
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"` // For soft deletes

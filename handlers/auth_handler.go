@@ -66,7 +66,6 @@ func isPasswordComplex(password, fullName, email string) bool {
 	return true
 }
 
-
 // hashPassword is a helper function to hash passwords using bcrypt
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14) // 14 is the cost factor
@@ -102,7 +101,6 @@ func RegisterUser(c *fiber.Ctx) error {
 			"message": "Password does not meet complexity requirements",
 		})
 	}
-
 
 	// 4. Hash password
 	hashedPassword, err := hashPassword(req.Password)
@@ -183,6 +181,7 @@ func generateJWT(user *models.User) (string, error) {
 		FullName: user.FullName,
 		Email:    user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.ID.String(),                                  // ← SET SUBJECT FIELD FOR MIDDLEWARE
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)), // Token berlaku 72 jam
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -199,7 +198,6 @@ func generateJWT(user *models.User) (string, error) {
 
 	return t, nil
 }
-
 
 // LoginUser is a handler for the POST /api/login endpoint
 func LoginUser(c *fiber.Ctx) error {

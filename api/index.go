@@ -43,9 +43,9 @@ func setupRoutes(app *fiber.App) {
 		email := c.Locals("userEmail")
 		fullName := c.Locals("userFullName")
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"status": "success", 
+			"status":  "success",
 			"message": "Profile data",
-			"data": fiber.Map{"id": userID, "email": email, "full_name": fullName},
+			"data":    fiber.Map{"id": userID, "email": email, "full_name": fullName},
 		})
 	})
 	api.Get("/admin/posts", middleware.AuthRequired(), handlers.GetAdminPosts)
@@ -54,7 +54,7 @@ func setupRoutes(app *fiber.App) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"message": "Welcome to KataGenzi API!",
-			"status": "ok",
+			"status":  "ok",
 		})
 	})
 
@@ -69,10 +69,10 @@ func setupRoutes(app *fiber.App) {
 func init() {
 	// Vercel akan inject environment variables langsung
 	log.Println("Initializing application...")
-	
+
 	// Debug: Print env vars (hati-hati di production!)
 	log.Printf("DATABASE_URL exists: %v", os.Getenv("DATABASE_URL") != "")
-	
+
 	database.ConnectDB()
 	utils.InitCloudinary()
 	runMigrations(database.DB)
@@ -87,7 +87,7 @@ func init() {
 		c.Set("Access-Control-Allow-Origin", "*")
 		c.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
-		
+
 		if c.Method() == "OPTIONS" {
 			return c.SendStatus(fiber.StatusNoContent)
 		}
@@ -95,7 +95,7 @@ func init() {
 	})
 
 	setupRoutes(app)
-	
+
 	log.Println("Application initialized successfully")
 }
 

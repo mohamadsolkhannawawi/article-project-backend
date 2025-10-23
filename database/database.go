@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -16,17 +15,17 @@ func ConnectDB() {
 	var err error
 
 	dsn := os.Getenv("DATABASE_URL")
-	
+
 	if dsn == "" {
 		log.Fatal("ERROR: DATABASE_URL environment variable is not set!")
 	}
 
-	log.Printf("Attempting to connect to database...")
+	log.Println("Attempting to connect to database...")
 
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
-	
+
 	if err != nil {
 		log.Fatalf("ERROR: Failed to connect to database: %v", err)
 	}

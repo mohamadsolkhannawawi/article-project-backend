@@ -35,7 +35,7 @@ func AuthRequired() fiber.Handler {
 				"message": "Invalid authorization header format",
 			})
 		}
-		
+
 		tokenString := parts[1]
 
 		// 3. Get JWT_SECRET from .env

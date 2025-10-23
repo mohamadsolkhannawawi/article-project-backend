@@ -3,8 +3,8 @@ package handlers
 import (
 	"log"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	// Import database package for DB instance access
 	"github.com/mohamadsolkhannawawi/article-backend/database"
@@ -21,12 +21,12 @@ import (
 
 // CreatePostRequest is the struct for parsing and validating the create post request body
 type CreatePostRequest struct {
-	Title            string   `json:"title" validate:"required,min=20"`  
-	Content          string   `json:"content" validate:"required,min=200"` 
+	Title            string   `json:"title" validate:"required,min=20"`
+	Content          string   `json:"content" validate:"required,min=200"`
 	Category         string   `json:"category" validate:"required,min=3"`
-	Status           string   `json:"status" validate:"required,oneof=publish draft thrash"` 
+	Status           string   `json:"status" validate:"required,oneof=publish draft trash"`
 	FeaturedImageURL string   `json:"featured_image_url" validate:"omitempty,url"` // URL allow empty or valid URL
-	Tags             []string `json:"tags" validate:"omitempty,dive,min=1"` // "dive" for validating each tag
+	Tags             []string `json:"tags" validate:"omitempty,dive,min=1"`        // "dive" for validating each tag
 }
 
 // CreatePost is the handler for the POST /api/posts endpoint
@@ -79,7 +79,7 @@ func CreatePost(c *fiber.Ctx) error {
 			continue
 		}
 		// Append tag as pointer to slice
-		tags = append(tags, &tag)  // Perbaikan di sini: gunakan &tag untuk mendapatkan pointer
+		tags = append(tags, &tag) // Perbaikan di sini: gunakan &tag untuk mendapatkan pointer
 	}
 
 	// 4. Create new Post instance
@@ -131,7 +131,7 @@ func GetPosts(c *fiber.Ctx) error {
 	query := database.DB.Model(&models.Post{}).
 		Preload("Author").
 		Preload("Tags").
-		Where("status = ?", "publish") // <-- THE FIX
+		Where("status = ?", "publish")
 
 	// 3. Get the total count of *published* posts
 	if err := query.Count(&total).Error; err != nil {
@@ -139,7 +139,7 @@ func GetPosts(c *fiber.Ctx) error {
 			"status": "error", "message": "Failed to count posts", "error": err.Error(),
 		})
 	}
-	
+
 	// 4. Apply pagination and order, then find the posts
 	err := query.
 		Order("created_at DESC").
@@ -152,10 +152,10 @@ func GetPosts(c *fiber.Ctx) error {
 			"status": "error", "message": "Failed to retrieve posts", "error": err.Error(),
 		})
 	}
-	
+
 	// 5. Return the response
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
+		"status":  "success",
 		"message": "Posts retrieved successfully",
 		"data":    posts,
 		"meta": fiber.Map{
@@ -166,12 +166,11 @@ func GetPosts(c *fiber.Ctx) error {
 	})
 }
 
-
 // GetPostByID is the handler for the GET /api/posts/:id endpoint
 func GetPostByID(c *fiber.Ctx) error {
 	// 1. Get the ID from the URL parameters
 	idParam := c.Params("id")
-	
+
 	// 2. Parse the string ID into a UUID
 	postID, err := uuid.Parse(idParam)
 	if err != nil {
@@ -216,7 +215,7 @@ type UpdatePostRequest struct {
 	Title            string   `json:"title" validate:"required,min=20"`
 	Content          string   `json:"content" validate:"required,min=200"`
 	Category         string   `json:"category" validate:"required,min=3"`
-	Status           string   `json:"status" validate:"required,oneof=publish draft thrash"`
+	Status           string   `json:"status" validate:"required,oneof=publish draft trash"`
 	FeaturedImageURL string   `json:"featured_image_url" validate:"omitempty,url"`
 	Tags             []string `json:"tags" validate:"omitempty,dive,min=1"`
 }
@@ -343,8 +342,8 @@ func DeletePost(c *fiber.Ctx) error {
 
 	// 2. Find the existing post
 	var post models.Post
-    // We use Unscoped() here just in case the post was ALREADY soft-deleted
-    // by the old broken code. This lets us find it.
+	// We use Unscoped() here just in case the post was ALREADY soft-deleted
+	// by the old broken code. This lets us find it.
 	if err := database.DB.Unscoped().First(&post, postID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -367,9 +366,9 @@ func DeletePost(c *fiber.Ctx) error {
 	}
 
 	// 4. Perform the "Trash" (Status update)
-    // This is the correct logic per your requirements.
+	// This is the correct logic per your requirements.
 	post.Status = "trash"
-    post.DeletedAt = gorm.DeletedAt{} // Set deleted_at back to NULL
+	post.DeletedAt = gorm.DeletedAt{} // Set deleted_at back to NULL
 
 	if err := database.DB.Save(&post).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -402,20 +401,20 @@ func GetAdminPosts(c *fiber.Ctx) error {
 
 	// 3. Apply status filter
 	if status != "" {
-        // Frontend sends "published", "drafts", "trashed"
-        // We handle the plural 's'
-        if status == "drafts" {
-            status = "draft"
-        } else if status == "trashed" {
-            status = "thrash"
-        } else if status == "published" {
+		// Frontend sends "published", "drafts", "trashed"
+		// We handle the plural 's'
+		if status == "drafts" {
+			status = "draft"
+		} else if status == "trashed" {
+			status = "trash"
+		} else if status == "published" {
 			status = "publish"
 		}
 		query = query.Where("status = ?", status)
 	} else {
-        // Default: Get all non-thrashed posts
-        query = query.Where("status IN ?", []string{"publish", "draft"})
-    }
+		// Default: Get all non-thrashed posts
+		query = query.Where("status IN ?", []string{"publish", "draft"})
+	}
 
 	// 4. Get the total count
 	if err := query.Count(&total).Error; err != nil {
@@ -423,7 +422,7 @@ func GetAdminPosts(c *fiber.Ctx) error {
 			"status": "error", "message": "Failed to count posts", "error": err.Error(),
 		})
 	}
-	
+
 	// 5. Apply pagination and order
 	err := query.
 		Order("created_at DESC").
@@ -436,10 +435,10 @@ func GetAdminPosts(c *fiber.Ctx) error {
 			"status": "error", "message": "Failed to retrieve posts", "error": err.Error(),
 		})
 	}
-	
+
 	// 6. Return response
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
+		"status":  "success",
 		"message": "Admin posts retrieved successfully",
 		"data":    posts,
 		"meta": fiber.Map{
@@ -454,17 +453,25 @@ func GetAdminPosts(c *fiber.Ctx) error {
 // Returns only posts created by the authenticated user
 func GetMyPosts(c *fiber.Ctx) error {
 	// 1. Get user ID from middleware
-	userID, ok := c.Locals("userID").(string)
-	if !ok || userID == "" {
+	userIDString, ok := c.Locals("userID").(string)
+	if !ok || userIDString == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status": "error", "message": "Unauthorized: User ID not found",
+		})
+	}
+
+	// Parse userID string to UUID
+	userID, err := uuid.Parse(userIDString)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status": "error", "message": "Invalid user ID format in token",
 		})
 	}
 
 	// 2. Parse query parameters
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset, _ := strconv.Atoi(c.Query("offset", "0"))
-	status := c.Query("status", "")      // e.g., "publish", "draft", "trash"
+	status := c.Query("status", "")       // e.g., "publish", "draft", "trash"
 	published := c.Query("published", "") // e.g., "true" for published only
 
 	var posts []models.Post
@@ -477,23 +484,24 @@ func GetMyPosts(c *fiber.Ctx) error {
 		Preload("Author").
 		Preload("Tags")
 
-	// 4. Apply status filter if provided
-	if status != "" {
-		// Normalize status values
-		if status == "drafts" {
-			status = "draft"
-		} else if status == "trashed" {
-			status = "trash"
-		} else if status == "published" {
-			status = "publish"
-		}
+	// 4. Apply status filter
+	switch status {
+	case "publish", "draft", "trash":
 		query = query.Where("status = ?", status)
-	} else if published == "true" {
-		// If published=true parameter is passed, only get published posts
+	case "published": // Alias for publish
 		query = query.Where("status = ?", "publish")
-	} else {
-		// Default: Get all non-trashed posts
-		query = query.Where("status IN ?", []string{"publish", "draft"})
+	case "drafts": // Alias for draft
+		query = query.Where("status = ?", "draft")
+	case "trashed": // Alias for trash
+		query = query.Where("status = ?", "trash")
+	default:
+		// If status is not provided or is an invalid value, check the 'published' param
+		if published == "true" {
+			query = query.Where("status = ?", "publish")
+		} else {
+			// Default behavior: get all non-trashed posts
+			query = query.Where("status IN ?", []string{"publish", "draft"})
+		}
 	}
 
 	// 5. Get the total count
@@ -504,13 +512,11 @@ func GetMyPosts(c *fiber.Ctx) error {
 	}
 
 	// 6. Apply pagination and order
-	err := query.
+	if err = query.
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
-		Find(&posts).Error
-
-	if err != nil {
+		Find(&posts).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "error", "message": "Failed to retrieve posts", "error": err.Error(),
 		})
