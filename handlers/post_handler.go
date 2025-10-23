@@ -79,7 +79,7 @@ func CreatePost(c *fiber.Ctx) error {
 			continue
 		}
 		// Append tag as pointer to slice
-		tags = append(tags, &tag) // Perbaikan di sini: gunakan &tag untuk mendapatkan pointer
+		tags = append(tags, &tag) // Fix here: use &tag to get a pointer
 	}
 
 	// 4. Create new Post instance

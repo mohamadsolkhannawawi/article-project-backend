@@ -74,7 +74,7 @@ func setupRoutes(app *fiber.App) {
 }
 
 func main() {
-	// Load .env untuk development lokal
+	// Load .env for local development
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: .env file not found")

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/mohamadsolkhannawawi/article-backend/config"
-	// Import package database dan models
+	// Import database and models packages
 	"github.com/mohamadsolkhannawawi/article-backend/database"
 	"github.com/mohamadsolkhannawawi/article-backend/models"
 
@@ -181,7 +181,7 @@ func generateJWT(user *models.User) (string, error) {
 		Email:    user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.ID.String(),                                   // ← SET SUBJECT FIELD FOR MIDDLEWARE
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)), // Token berlaku 72 jam
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)), // Token is valid for 72 hours
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}

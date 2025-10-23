@@ -96,7 +96,7 @@ func setupRoutes(app *fiber.App) {
 func init() {
 	log.Println("=== VERCEL INIT START ===")
 
-	// Config sudah auto-load lewat init() di config package
+	// Config is auto-loaded via init() in the config package
 	
 	database.ConnectDB()
 	utils.InitCloudinary()

@@ -17,14 +17,14 @@ func InitCloudinary() {
 
 	log.Println("Initializing Cloudinary...")
 
-	// Ganti os.Getenv dengan AppConfig
+	// Replace os.Getenv with AppConfig
 	cloudName := config.AppConfig.CloudinaryCloudName
 	apiKey := config.AppConfig.CloudinaryAPIKey
 	apiSecret := config.AppConfig.CloudinaryAPISecret
 
 	if cloudName == "" || apiKey == "" || apiSecret == "" {
 		log.Println("ERROR: Cloudinary credentials are not set (or using default values). Cloudinary features will be disabled.")
-        // HAPUS log.Fatal() untuk menghindari crash total
+        // REMOVE log.Fatal() to avoid a total crash
 		return 
 	}
 
@@ -32,7 +32,7 @@ func InitCloudinary() {
 	cld, err = cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
 	if err != nil {
 		log.Printf("ERROR: Failed to initialize Cloudinary: %v", err)
-        // HAPUS log.Fatalf()
+        // REMOVE log.Fatalf()
 		return
 	}
 
