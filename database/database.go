@@ -1,31 +1,46 @@
 package database
 
 import (
+	"fmt"
 	"log"
 	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-// DB is the global database connection instance with GORM ORM package will be shared across the application
 var DB *gorm.DB
 
-// ConnectDB is a function to initialize the database connection
 func ConnectDB() {
 	var err error
 
-	// Get DSN (Data Source Name) from environment variable
 	dsn := os.Getenv("DATABASE_URL")
-
-	log.Printf("DEBUG: Attempting to connect with DATABASE_URL = [%s]\n", dsn)
-
-	// Open connection to database
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		log.Printf("ERROR: Failed to connect to database using DSN [%s]: %v\n", dsn, err)
-		panic(err)
+	
+	if dsn == "" {
+		log.Fatal("ERROR: DATABASE_URL environment variable is not set!")
 	}
 
-	log.Println("Successfully connected to database.")
+	log.Printf("Attempting to connect to database...")
+
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+	
+	if err != nil {
+		log.Fatalf("ERROR: Failed to connect to database: %v", err)
+	}
+
+	// Test connection
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Fatalf("ERROR: Failed to get database instance: %v", err)
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		log.Fatalf("ERROR: Failed to ping database: %v", err)
+	}
+
+	log.Println("✓ Successfully connected to database")
 }
