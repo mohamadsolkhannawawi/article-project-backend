@@ -2,55 +2,58 @@ package utils
 
 import (
 	"context"
+	"io"
 	"log"
-	"os"
-	"time"
+
+	"github.com/mohamadsolkhannawawi/article-backend/config"
 
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 )
 
-var Cld *cloudinary.Cloudinary
+var cld *cloudinary.Cloudinary
 
-// InitCloudinary initializes the Cloudinary service
 func InitCloudinary() {
-	// Get credentials from .env
-	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
-	apiKey := os.Getenv("CLOUDINARY_API_KEY")
-	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+
+	log.Println("Initializing Cloudinary...")
+
+	// Ganti os.Getenv dengan AppConfig
+	cloudName := config.AppConfig.CloudinaryCloudName
+	apiKey := config.AppConfig.CloudinaryAPIKey
+	apiSecret := config.AppConfig.CloudinaryAPISecret
 
 	if cloudName == "" || apiKey == "" || apiSecret == "" {
-		log.Fatal("Cloudinary credentials are not set in .env")
+		log.Println("ERROR: Cloudinary credentials are not set (or using default values). Cloudinary features will be disabled.")
+        // HAPUS log.Fatal() untuk menghindari crash total
+		return 
 	}
 
 	var err error
-	Cld, err = cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
+	cld, err = cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
 	if err != nil {
-		log.Fatalf("Failed to initialize Cloudinary: %v", err)
+		log.Printf("ERROR: Failed to initialize Cloudinary: %v", err)
+        // HAPUS log.Fatalf()
+		return
 	}
 
-	log.Println("Cloudinary service initialized successfully.")
+	log.Println("✓ Cloudinary initialized successfully")
 }
 
-// UploadToCloudinary uploads a file to Cloudinary
-// 'file' can be a path (string) or file content (io.Reader)
-func UploadToCloudinary(file interface{}, folder string) (string, error) {
-	// Create a context with a timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func UploadToCloudinary(file io.Reader, folder string) (string, error) {
+	if cld == nil {
+		log.Println("ERROR: Cloudinary not initialized")
+		return "", nil
+	}
 
-	// Upload parameters
+	ctx := context.Background()
 	uploadParams := uploader.UploadParams{
 		Folder: folder,
 	}
 
-	// Perform the upload
-	uploadResult, err := Cld.Upload.Upload(ctx, file, uploadParams)
+	result, err := cld.Upload.Upload(ctx, file, uploadParams)
 	if err != nil {
-		log.Println("Failed to upload file:", err)
 		return "", err
 	}
 
-	// Return the secure URL
-	return uploadResult.SecureURL, nil
+	return result.SecureURL, nil
 }

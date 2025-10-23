@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"log"
-	"os"
 	"strings"
+
+	"github.com/mohamadsolkhannawawi/article-backend/config"
 
 	// Import package handlers to access JwtCustomClaims struct
 	"github.com/mohamadsolkhannawawi/article-backend/handlers"
@@ -39,7 +40,8 @@ func AuthRequired() fiber.Handler {
 		tokenString := parts[1]
 
 		// 3. Get JWT_SECRET from .env
-		jwtSecret := os.Getenv("JWT_SECRET")
+		// jwtSecret := os.Getenv("JWT_SECRET")
+		jwtSecret := config.AppConfig.JWTSecret
 		if jwtSecret == "" {
 			log.Println("Warning: JWT_SECRET is not set")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

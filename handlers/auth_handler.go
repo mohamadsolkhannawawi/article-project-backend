@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"log"
-	"os"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/mohamadsolkhannawawi/article-backend/config"
 	// Import package database dan models
 	"github.com/mohamadsolkhannawawi/article-backend/database"
 	"github.com/mohamadsolkhannawawi/article-backend/models"
@@ -168,8 +168,7 @@ func checkPasswordHash(password, hash string) bool {
 
 // generateJWT creates a new JWT token for the user
 func generateJWT(user *models.User) (string, error) {
-	// Get JWT_SECRET from .env
-	jwtSecret := os.Getenv("JWT_SECRET")
+	jwtSecret := config.AppConfig.JWTSecret
 	if jwtSecret == "" {
 		log.Println("Warning: JWT_SECRET environment variable not set. Using default.")
 		jwtSecret = "default_secret_please_change" // Fallback (not safe for production)

@@ -2,7 +2,8 @@ package database
 
 import (
 	"log"
-	"os"
+
+	"github.com/mohamadsolkhannawawi/article-backend/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -14,28 +15,19 @@ var DB *gorm.DB
 func ConnectDB() {
 	var err error
 
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := config.AppConfig.DatabaseURL
 
-	if dsn == "" {
-		log.Println("ERROR: DATABASE_URL environment variable is not set!")
-		log.Println("Please set DATABASE_URL in Vercel Environment Variables")
-		// Don't use log.Fatal() - let it continue so we can see the error
-		return
-	}
-
-	log.Println("Attempting to connect to database...")
+	log.Println("Connecting to database...")
 
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Warn),
 	})
 
 	if err != nil {
 		log.Printf("ERROR: Failed to connect to database: %v", err)
-		// Don't crash - just log the error
 		return
 	}
 
-	// Test connection
 	sqlDB, err := DB.DB()
 	if err != nil {
 		log.Printf("ERROR: Failed to get database instance: %v", err)
@@ -48,5 +40,5 @@ func ConnectDB() {
 		return
 	}
 
-	log.Println("✓ Successfully connected to database")
+	log.Println("✓ Database connected successfully")
 }

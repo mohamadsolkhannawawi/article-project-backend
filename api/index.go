@@ -3,7 +3,8 @@ package handler
 import (
 	"log"
 	"net/http"
-	"os"
+
+	_ "github.com/mohamadsolkhannawawi/article-backend/config"
 
 	"github.com/mohamadsolkhannawawi/article-backend/database"
 	"github.com/mohamadsolkhannawawi/article-backend/handlers"
@@ -93,41 +94,18 @@ func setupRoutes(app *fiber.App) {
 }
 
 func init() {
-	log.Println("========================================")
 	log.Println("=== VERCEL INIT START ===")
-	log.Println("========================================")
 
-	// Check all env vars
-	dbURL := os.Getenv("DATABASE_URL")
-	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
-	cloudKey := os.Getenv("CLOUDINARY_API_KEY")
-	cloudSecret := os.Getenv("CLOUDINARY_API_SECRET")
-	jwtSecret := os.Getenv("JWT_SECRET")
-
-	log.Printf("Environment Variables Check:")
-	log.Printf("  DATABASE_URL: %v", dbURL != "")
-	log.Printf("  CLOUDINARY_CLOUD_NAME: %v", cloudName != "")
-	log.Printf("  CLOUDINARY_API_KEY: %v", cloudKey != "")
-	log.Printf("  CLOUDINARY_API_SECRET: %v", cloudSecret != "")
-	log.Printf("  JWT_SECRET: %v", jwtSecret != "")
-
-	// Connect to database (won't crash if fails now)
-	log.Println("Connecting to database...")
+	// Config sudah auto-load lewat init() di config package
+	
 	database.ConnectDB()
-
-	// Initialize Cloudinary
-	log.Println("Initializing Cloudinary...")
 	utils.InitCloudinary()
-
-	// Run migrations (only if DB is connected)
 	runMigrations(database.DB)
 
-	// Create Fiber app
 	app = fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 	})
 
-	// CORS
 	app.Use(func(c *fiber.Ctx) error {
 		c.Set("Access-Control-Allow-Origin", "*")
 		c.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -141,13 +119,9 @@ func init() {
 
 	setupRoutes(app)
 
-	log.Println("========================================")
 	log.Println("=== VERCEL INIT COMPLETE ===")
-	log.Println("========================================")
 }
 
-// Handler adalah entry point untuk Vercel
 func Handler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Request: %s %s", r.Method, r.URL.Path)
 	adaptor.FiberApp(app)(w, r)
 }
