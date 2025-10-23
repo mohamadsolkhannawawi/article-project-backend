@@ -29,29 +29,29 @@ func runMigrations(db *gorm.DB) {
 }
 
 func setupRoutes(app *fiber.App) {
-	// Root handler
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Welcome to KataGenzi API!",
-			"status":  "ok",
-		})
-	})
-
-	// API group
 	api := app.Group("/api")
 
-	// Auth Routes
+	// --- Public Auth Routes ---
 	api.Post("/register", handlers.RegisterUser)
 	api.Post("/login", handlers.LoginUser)
 
-	// Posts Routes
+	// --- Public Post Routes ---
 	api.Get("/posts", handlers.GetPosts)
+	// ⭐ IMPORTANT: /posts/my MUST come BEFORE /posts/:id
+	// Otherwise /posts/my will be caught by /posts/:id route (my treated as ID parameter)
+	api.Get("/posts/my", middleware.AuthRequired(), handlers.GetMyPosts)
 	api.Get("/posts/:id", handlers.GetPostByID)
+
+	// --- Protected Post Routes ---
 	api.Post("/posts", middleware.AuthRequired(), handlers.CreatePost)
 	api.Put("/posts/:id", middleware.AuthRequired(), handlers.UpdatePost)
 	api.Delete("/posts/:id", middleware.AuthRequired(), handlers.DeletePost)
 
-	// Protected Routes
+	// --- Protected Admin Routes ---
+	api.Get("/admin/posts", middleware.AuthRequired(), handlers.GetAdminPosts)
+	api.Post("/upload", middleware.AuthRequired(), handlers.UploadImage)
+
+	// --- Protected User Routes ---
 	api.Get("/profile", middleware.AuthRequired(), func(c *fiber.Ctx) error {
 		userID := c.Locals("userID")
 		email := c.Locals("userEmail")
@@ -62,10 +62,14 @@ func setupRoutes(app *fiber.App) {
 			"data":    fiber.Map{"id": userID, "email": email, "full_name": fullName},
 		})
 	})
-	api.Get("/admin/posts", middleware.AuthRequired(), handlers.GetAdminPosts)
-	api.Post("/upload", middleware.AuthRequired(), handlers.UploadImage)
 
-	// 404 Handler for API
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"message": "Welcome to KataGenzi API!",
+			"status":  "ok",
+		})
+	})
+
 	api.Use(func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":  "error",
@@ -77,18 +81,24 @@ func setupRoutes(app *fiber.App) {
 func init() {
 	log.Println("Initializing application...")
 
-	// Debug env vars
+	// Note: .env tidak akan dibaca di Vercel, gunakan Environment Variables
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Println("WARNING: DATABASE_URL is not set!")
 	} else {
-		log.Println("DATABASE_URL is set")
+		log.Println("✓ DATABASE_URL is set")
 	}
 
+	// Connect to database
 	database.ConnectDB()
+
+	// Initialize Cloudinary
 	utils.InitCloudinary()
+
+	// Run migrations
 	runMigrations(database.DB)
 
+	// Create Fiber app
 	app = fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 	})
@@ -105,9 +115,10 @@ func init() {
 		return c.Next()
 	})
 
+	// Setup routes
 	setupRoutes(app)
 
-	log.Println("Application initialized successfully")
+	log.Println("✓ Application initialized successfully")
 }
 
 // Handler adalah entry point untuk Vercel

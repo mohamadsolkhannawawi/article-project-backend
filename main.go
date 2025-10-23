@@ -1,9 +1,7 @@
-package handler
+package main
 
 import (
 	"log"
-	"net/http"
-	"os"
 
 	"github.com/mohamadsolkhannawawi/article-backend/database"
 	"github.com/mohamadsolkhannawawi/article-backend/handlers"
@@ -12,20 +10,17 @@ import (
 	"github.com/mohamadsolkhannawawi/article-backend/utils"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
-
-var app *fiber.App
 
 func runMigrations(db *gorm.DB) {
 	log.Println("Running Migrations...")
 	err := db.AutoMigrate(&models.User{}, &models.Tag{}, &models.Post{})
 	if err != nil {
-		log.Printf("ERROR: Failed to migrate database: %v\n", err)
-	} else {
-		log.Println("Database Migrated Successfully!")
+		log.Fatalf("Failed to migrate database: %v", err)
 	}
+	log.Println("Database Migrated Successfully!")
 }
 
 func setupRoutes(app *fiber.App) {
@@ -78,15 +73,11 @@ func setupRoutes(app *fiber.App) {
 	})
 }
 
-func init() {
-	log.Println("Initializing application...")
-
-	// Note: .env tidak akan dibaca di Vercel, gunakan Environment Variables
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Println("WARNING: DATABASE_URL is not set!")
-	} else {
-		log.Println("✓ DATABASE_URL is set")
+func main() {
+	// Load .env untuk development lokal
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: .env file not found")
 	}
 
 	// Connect to database
@@ -99,9 +90,7 @@ func init() {
 	runMigrations(database.DB)
 
 	// Create Fiber app
-	app = fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-	})
+	app := fiber.New()
 
 	// CORS
 	app.Use(func(c *fiber.Ctx) error {
@@ -118,10 +107,7 @@ func init() {
 	// Setup routes
 	setupRoutes(app)
 
-	log.Println("✓ Application initialized successfully")
-}
-
-// Handler adalah entry point untuk Vercel
-func Handler(w http.ResponseWriter, r *http.Request) {
-	adaptor.FiberApp(app)(w, r)
+	// Start server
+	log.Println("Server starting on :3000")
+	log.Fatal(app.Listen(":3000"))
 }
